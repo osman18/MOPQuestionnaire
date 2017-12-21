@@ -1,0 +1,26 @@
+{
+  "name": "MOPQuestionnaire",
+  "version": "1.0.0",
+  "description": "MOP Questionnaire",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Osman Zupcic",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.15.0",
+    "connect-flash": "^0.1.1",
+    "cookie-parser": "^1.4.1",
+    "express": "^4.13.4",
+    "express-session": "^1.13.0",
+    "jade": "^1.11.0",
+    "mysql": "^2.10.2",
+    "sequelize": "^3.31.1",
+    "sequelize-cli": "^2.3.1",
+    "uuid": "^2.0.2"
+  },
+  "engines": {
+    "node": "0.10.36"
+  }
+}

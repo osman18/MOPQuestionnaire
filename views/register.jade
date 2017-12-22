@@ -1,0 +1,27 @@
+doctype html
+html(lang="en")
+	head
+		title MOP Questionnarie
+		meta(name='viewport', content='width=device-width, initial-scale=1')
+		link(rel='stylesheet', href='/css/bootstrap.css')
+		link(rel='stylesheet', href='/css/bootstrap-theme.css')
+		link(rel='stylesheet', href='/css/register.css')
+	body
+		form.form-register(method='post', action='registerGuest')
+			h2.form-register-heading.lead Please enter your data
+			label.sr-only(for='firstname') FirstName
+			input.form-control(type='text', id='firstname', name='firstname', placeholder='FirstName', required)
+			label.sr-only(for='lastname') LastName
+			input.form-control(type='text', id='lastname', name='lastname', placeholder='LastName', required)
+			label.sr-only(for='email') Email
+			input.form-control(type='text', id='email', name='email', placeholder='Email', required)
+			p
+			label.sr-only(for='password') Password
+			input.form-control(type='password', id='password', name='password', placeholder='Password', required)
+			label.sr-only(for='repassword') Re-type password
+			input.form-control(type='password', id='repassword', name='repassword', placeholder='Re-type password', required)
+			p
+			button.btn.btn-lg.btn-primary.btn-block(type='submit') Register
+
+		script(type='text/javascript', src='https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js')
+		script(type='text/javascript', src='/js/bootstrap.js')

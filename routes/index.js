@@ -5,6 +5,10 @@ var models = require('../models');
 var cookieParser = require('cookie-parser');
 var session = require('express-session');
 var flash = require('connect-flash');
+var validator = require("email-validator");
+
+var userLoggedIn = false;
+var userEmail;
 
 //Use this function to check if the user is logged in as an admin
 function checkAuth(req, res, next) {
@@ -33,6 +37,89 @@ router.post('/login', function(req, res) {
 	});
 });
 
+//Use this function to check if the user is logged
+function checkUserAuth(req, res, next) {
+	if (!req.session.userLoggedIn) {
+		res.send('You are not authorized to view this page');
+	}else{
+		next();
+	}
+}
+
+//Login authentication 
+router.post('/indexLogin', function(req, res) {
+	var post = req.body;
+
+	models.sequelize.query('SELECT email FROM guests WHERE email=? AND password=?', {
+		replacements: [post.user,post.password],
+		type: models.sequelize.QueryTypes.SELECT
+	}).then(function(questions) {
+		if (questions.length <= 0) {
+			res.send('Bad Password');
+		}else{
+			userEmail = post.user;
+			req.session.userLoggedIn = true;
+			userLoggedIn = true;
+			res.redirect('/');
+		}
+	});
+});
+
+//Register Guest
+router.post('/registerGuest', function(req, res) {
+	var post = req.body;
+
+	if(!validator.validate(post.email)==true){
+		res.send('Email is not valid.');
+	}
+	if(post.password!=post.repassword){
+		res.send('Password does not match. Plese re-type password correctly.');
+	}
+
+	models.sequelize.query('SELECT email FROM guests WHERE email=?', {
+		replacements: [post.email],
+		type: models.sequelize.QueryTypes.SELECT
+	}).then(function(questions) {
+		if (questions.length > 0) {
+			res.send('Email already exists');
+		}else{
+			models.Guest.findOrCreate( {
+					where: {
+						email: post.email
+					}
+				})
+
+				.spread(function(guest, created) {
+					if (created) {
+						guest.set( {
+							ipAddress: req.ip,
+							email: post.email,
+							firstname: post.firstname,
+							lastname: post.lastname,
+							password: post.password
+						})
+
+						.save();
+					}else{
+						res.send('Something went wrong. Please try again later.');
+					}
+					res.redirect('/');
+				});
+		}
+	});
+});
+
+
+//Register 
+router.post('/register', function(req, res) {
+	res.render('register');
+});
+
+//Get the register page
+router.get('/register', function(req, res) {
+	res.render('register');
+});
+
 //Get the login page
 router.get('/login', function(req, res) {
 	res.render('login');
@@ -44,49 +131,60 @@ router.get('/logout', function(req, res) {
 	res.redirect('/');
 });
 
+//Get the index login page
+router.get('/indexLogin', function(req, res) {
+	res.render('indexLogin');
+});
+
+//Get the index logout route
+router.get('/indexLogout', function(req, res) {
+	userLoggedIn = false;
+	userEmail = null;
+	req.session.userLoggedIn = false;
+	res.redirect('/');
+});
+
 //Get the questions for the homepage
 router.get('/', function(req, res) {
-	var guestId = req.cookies.remember ? req.cookies.remember : uuid.v1();
-	models.Guest.findOrCreate( {
-		where: {
-			uuid: guestId
-		}
-	})
+	if(userLoggedIn == false){
+		res.render('indexLogin');
+	}else{
+		models.Guest.findOne( {
+			where: {
+				email: userEmail
+			}
+		})
+			.then(function(guest) {
+				if(guest==null){
+					res.render('empty');
+				}
+				//Select a question from the database randomly
+				models.sequelize.query('SELECT id FROM Questions WHERE id NOT IN(SELECT QuestionId AS id FROM QuestionGuests WHERE GuestId = ?) ORDER BY RAND() LIMIT 1', {
+					replacements: [guest.id],
+					type: models.sequelize.QueryTypes.SELECT
+				})
 
-	.spread(function(guest, created) {
-		if (created) {
-			guest.set( {
-				ipAddress: req.ip,
-			})
-
-			.save();
-			res.cookie('remember', guest.uuid);
-		}
-	//Select a question from the database randomly
-	models.sequelize.query('SELECT id FROM Questions WHERE id NOT IN(SELECT QuestionId AS id FROM QuestionGuests WHERE GuestId = ?) ORDER BY RAND() LIMIT 1', {
-		replacements: [guest.id],
-		type: models.sequelize.QueryTypes.SELECT
-	})
-
-		.then(function(questions) {
-			if (questions.length <= 0) {
-				//Answered all the questions, redirect to a page with no more questions
-				res.render('empty');
-			}else{
-				models.Question.findById(questions.pop().id)
-				.then(function(question) {
-					question.getChoices().then(function(associatedChoices) {
-						res.render('index', {
-							question: question,
-							choices: associatedChoices,
-							guest: guest,
-							title: question.question
-						});
+					.then(function(questions) {
+						if (questions.length <= 0) {
+							//Answered all the questions, redirect to a page with no more questions
+							res.render('empty');
+						}else{
+							models.Question.findById(questions.pop().id)
+							.then(function(question) {
+								question.getChoices().then(function(associatedChoices) {
+									res.render('index', {
+										question: question,
+										choices: associatedChoices,
+										guest: guest,
+										title: question.question
+									});
+								});
+							});
+						}
 					});
 				});
-			}
-		});
-	});
+	}
+	
 });
 
 //Save response and question Id to the guest model
@@ -198,7 +296,7 @@ router.post('/questions/:id', function(req, res, next) {
 			})
 			.save()
 			.then(function(question) {
-				req.flash('success', 'updated');
+				//req.flash('success', 'updated');
 				res.redirect('/questions/' + question.id);
 			});
 		});
@@ -225,7 +323,7 @@ router.post('/questions/:id/choices/:choiceId', checkAuth, function(req, res, ne
 			})
 			.save()
 			.then(function(choice) {
-				req.flash('success', 'updated');
+				//req.flash('success', 'updated');
 				res.redirect('/questions/' + req.params.id);
 			});
 		});

@@ -1,19 +1,21 @@
 doctype html
 html(lang="en")
 	head
-		title Administrator Signin
+		title MOP Questionnarie
 		meta(name='viewport', content='width=device-width, initial-scale=1')
 		link(rel='stylesheet', href='/css/bootstrap.css')
 		link(rel='stylesheet', href='/css/bootstrap-theme.css')
 		link(rel='stylesheet', href='/css/signin.css')
 	body
-		form.form-signin(method='post', action='login')
+		form.form-signin(method='post', action='indexLogin')
 			h2.form-signin-heading.lead Please sign in
 			label.sr-only(for='user') Username
-			input.form-control(type='text', id='user', name='user', placeholder='Username', required)
+			input.form-control(type='text', id='user', name='user', placeholder='Email', required)
 			label.sr-only(for='password') Password
 			input.form-control(type='password', id='password', name='password', placeholder='Password', required)
 			button.btn.btn-lg.btn-primary.btn-block(type='submit') Sign in
-
+		form.form-signin(method='post', action='register')
+			button.btn.btn-lg.btn-success.btn-block(type='register') Register	
+		
 		script(type='text/javascript', src='https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js')
 		script(type='text/javascript', src='/js/bootstrap.js')

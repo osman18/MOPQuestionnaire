@@ -19,7 +19,11 @@ block content
 					li
 						a(href='/login') 
 							i.glyphicon.glyphicon-log-in
-							span  Admin
+							span  Admin	
+					li
+						a(href='/indexLogout') 
+							i.glyphicon.glyphicon-log-out
+							span  Log out
 	div.content
 		p.text-center.lead #{question.question}
 		form(method='post', action='/')

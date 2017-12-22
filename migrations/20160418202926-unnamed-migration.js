@@ -13,7 +13,11 @@ module.exports = {
       updatedAt: Sequelize.DATE,
       QuestionId: Sequelize.INTEGER,
       uuid: Sequelize.STRING,
-      ipAddress: Sequelize.STRING
+      ipAddress: Sequelize.STRING,
+      firstname: Sequelize.STRING,
+      lastname: Sequelize.STRING,
+      email: Sequelize.STRING,
+      password: Sequelize.STRING
     });
   },
 

@@ -7,16 +7,18 @@ var session = require('express-session');
 var database = require('mysql');
 var flash = require('connect-flash');
 var app = express();
+var user;
 
 app.set('view engine', 'jade');
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(cookieParser());
+app.use(flash());
 app.use(session( {
 	genid: function(req) {
 		return uuid.v1();
 	},
-	secret: 'steph17',
+	secret: 'osman18',
 	cookie:
 	{ 
 		secure: false

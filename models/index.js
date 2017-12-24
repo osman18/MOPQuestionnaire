@@ -16,10 +16,10 @@ if (process.env.DATABASE_URL) {
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect:  'mysql',
     protocol: 'mysql',
-    host:     'us-cdbr-iron-east-03.cleardb.net',
-    user:     'bb0436f0a841f4',
-    password: '47f61ae2', 
-    database: 'heroku_a3e925ef5d0b0ec'
+    host:     'eu-cdbr-west-01.cleardb.com',
+    user:     'b9aa5643e9bf36',
+    password: 'b9ed96e9', 
+    database: 'heroku_ec0bfe9b1ae1583'
   })
 } else {
   var sequelize = new Sequelize(config.database, config.username, config.password, config);

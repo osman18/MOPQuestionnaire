@@ -25,6 +25,12 @@ block content
                 form(method='post', action='/add-question', role="form", rows='2')
                     .form-group
                         textarea.input-lg.form-control(id='question_form', type='text', name='question', placeholder='Enter a question', required)
+                        p
+                        .form-group
+                            select(id='select' name='select').form-control
+                                option(value='single') Single select
+                                option(value='multi') Multi select
+                                option(value='text') Text
                         button.btn.btn-primary.btn-lg(type='submit') Create a Question
             h2.lead or Manage Questions
     .row

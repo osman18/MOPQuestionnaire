@@ -6,6 +6,8 @@ var cookieParser = require('cookie-parser');
 var session = require('express-session');
 var flash = require('connect-flash');
 var validator = require("email-validator");
+var async = require('async');
+var bcrypt = require('bcrypt-nodejs');
 
 var userLoggedIn = false;
 var userEmail;
@@ -49,18 +51,28 @@ function checkUserAuth(req, res, next) {
 //Login authentication 
 router.post('/indexLogin', function(req, res) {
 	var post = req.body;
+	var hash = bcrypt.hashSync(post.password);
 
-	models.sequelize.query('SELECT email FROM guests WHERE email=? AND password=?', {
-		replacements: [post.user,post.password],
+	models.sequelize.query('SELECT password FROM guests WHERE email=?', {
+		replacements: [post.user],
 		type: models.sequelize.QueryTypes.SELECT
-	}).then(function(questions) {
-		if (questions.length <= 0) {
+	}).then(function(guests) {
+		if (guests.length <= 0) {
 			res.send('Bad Password');
 		}else{
-			userEmail = post.user;
-			req.session.userLoggedIn = true;
-			userLoggedIn = true;
-			res.redirect('/');
+			var r = res;
+			bcrypt.compare(post.password, hash, function(err, res) {
+				if(res == true){
+					userEmail = post.user;
+					req.session.userLoggedIn = true;
+					userLoggedIn = true;
+					r.redirect('/');
+				}else {
+					r.send('Bad Password');
+				}
+			});
+			
+			
 		}
 	});
 });
@@ -96,7 +108,7 @@ router.post('/registerGuest', function(req, res) {
 							email: post.email,
 							firstname: post.firstname,
 							lastname: post.lastname,
-							password: post.password
+							password: bcrypt.hashSync(post.password)
 						})
 
 						.save();
@@ -159,7 +171,7 @@ router.get('/', function(req, res) {
 					res.render('empty');
 				}
 				//Select a question from the database randomly
-				models.sequelize.query('SELECT id FROM Questions WHERE id NOT IN(SELECT QuestionId AS id FROM QuestionGuests WHERE GuestId = ?) ORDER BY RAND() LIMIT 1', {
+				models.sequelize.query('SELECT id FROM Questions WHERE id NOT IN(SELECT QuestionId AS id FROM QuestionGuests WHERE GuestId = ?) ORDER BY RAND()', {
 					replacements: [guest.id],
 					type: models.sequelize.QueryTypes.SELECT
 				})
@@ -169,15 +181,27 @@ router.get('/', function(req, res) {
 							//Answered all the questions, redirect to a page with no more questions
 							res.render('empty');
 						}else{
-							models.Question.findById(questions.pop().id)
-							.then(function(question) {
-								question.getChoices().then(function(associatedChoices) {
-									res.render('index', {
-										question: question,
-										choices: associatedChoices,
-										guest: guest,
-										title: question.question
-									});
+							var choicesMap = new Map();
+							var questionsObjects = [];
+							var i = 0;
+ 
+							async.each(questions, function(listItem, next) {
+								listItem.position = i;		
+								var qid=listItem.id;
+								models.Question.findById(listItem.id)
+									.then(function(question) {
+										questionsObjects.push(question);
+										i++;
+										question.getChoices().then(function(associatedChoices) {
+											choicesMap.set(qid, associatedChoices);
+											next();
+										});
+									});				 						 
+							}, function(err) {
+								res.render('index', {
+									questions: questionsObjects,
+									choices: choicesMap,
+									guest: guest
 								});
 							});
 						}
@@ -189,16 +213,62 @@ router.get('/', function(req, res) {
 
 //Save response and question Id to the guest model
 router.post('/', function(req, res) {
-	models.QuestionGuest.create( {
-		QuestionId: req.body.question_id,
-		GuestId: req.body.guest_id,
-		ChoiceId: req.body.choice_id
-	})
-
-	.then(function(result) {
-		res.redirect('/');
-	});
+	if(req.body.question_type=='single' || req.body.question_type=='multi'){
+		if(req.body.choice_id!=null){
+			var opts = req.body.choice_id;
+			for(var i = 0; i < opts.length; i++) {
+				if(i<opts.length-1){
+					models.QuestionGuest.create( {
+						QuestionId: req.body.question_id,
+						GuestId: req.body.guest_id,
+						ChoiceId: opts[i]
+					})	
+				}else{
+					models.QuestionGuest.create( {
+						QuestionId: req.body.question_id,
+						GuestId: req.body.guest_id,
+						ChoiceId: opts[i]
+					}).then(function(result) {
+						wait(2500);	
+						res.redirect('/');
+					});
+				}
+			}
+		}else{
+			models.QuestionGuest.create( {
+						QuestionId: req.body.question_id,
+						GuestId: req.body.guest_id,
+						ChoiceId: req.body.choice_id
+					}).then(function(result) {
+						wait(2500);
+						res.redirect('/');
+					});
+		}
+	} else {
+		models.Choice.create( {
+			choice: req.body.question_answer,
+			QuestionId: req.body.question_id
+		})
+		.then(function(choice) {
+			models.QuestionGuest.create( {
+						QuestionId: req.body.question_id,
+						GuestId: req.body.guest_id,
+						ChoiceId: choice.id
+					}).then(function(result) {
+						wait(2500);						
+						res.redirect('/');
+					});
+		});
+	}
 });
+
+function wait(ms)
+{
+	var d = new Date();
+	var d2 = null;
+	do { d2 = new Date(); }
+	while(d2-d < ms);
+};
 
 //Get the results for the question with specific ID
 router.get('/questions/:id/results', checkAuth, function(req, res, next) {
@@ -208,17 +278,32 @@ router.get('/questions/:id/results', checkAuth, function(req, res, next) {
   			res.status(500).send('Cannot find question');
 		}
 
-		models.sequelize.query('select c.choice, count(guest.id) as totalVotes from Choices c left join QuestionGuests guest on c.id = guest.ChoiceId where c.QuestionId = ? group by c.id order by totalVotes desc', {
-			replacements: [question.id],
-			type: models.sequelize.QueryTypes.SELECT
-		})
+		if(question.type=='text'){
+			models.sequelize.query('select c.choice, count(c.choice) as totalVotes from Choices c left join QuestionGuests guest on c.id = guest.ChoiceId where c.QuestionId = ? group by c.choice order by totalVotes desc', {
+				replacements: [question.id],
+				type: models.sequelize.QueryTypes.SELECT
+			})
 
-		.then(function(choices) {
-			res.render('results', {
-				question:question,
-				choices: choices
+			.then(function(choices) {
+				res.render('results', {
+					question:question,
+					choices: choices
+				});
 			});
-		});
+		}else { 
+			models.sequelize.query('select c.choice, count(guest.id) as totalVotes from Choices c left join QuestionGuests guest on c.id = guest.ChoiceId where c.QuestionId = ? group by c.id order by totalVotes desc', {
+				replacements: [question.id],
+				type: models.sequelize.QueryTypes.SELECT
+			})
+
+			.then(function(choices) {
+				res.render('results', {
+					question:question,
+					choices: choices
+				});
+			});
+		}
+		
 	})
 
 	.catch(function(error) {
@@ -230,7 +315,8 @@ router.get('/questions/:id/results', checkAuth, function(req, res, next) {
 //Save question text into mysql database
 router.post('/add-question', checkAuth, function(req, res, next) {
 	models.Question.create( {
-		question: req.body.question
+		question: req.body.question,
+		type: req.body.select
 	})
 
 	.then(function(question) {
@@ -288,7 +374,7 @@ router.post('/questions/:id/choices/add', checkAuth, function(req, res, next) {
 });
 
 //Update question text in edit question
-router.post('/questions/:id', function(req, res, next) {
+router.post('/questions/:id', checkAuth, function(req, res, next) {
 	models.Question.findById(req.params.id)
 		.then(function(question) {
 			question.set({
@@ -303,7 +389,7 @@ router.post('/questions/:id', function(req, res, next) {
 });
 
 //Delete a question on the questions page
-router.get('/questions/:id/delete', function(req, res, next) {
+router.get('/questions/:id/delete', checkAuth, function(req, res, next) {
 	models.Question.destroy({
 		where: {
 			id: req.params.id

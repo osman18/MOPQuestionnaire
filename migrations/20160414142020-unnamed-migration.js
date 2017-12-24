@@ -12,6 +12,7 @@ module.exports = {
       createdAt: Sequelize.DATE,
       updatedAt: Sequelize.DATE,
       question: Sequelize.STRING, 
+      type: Sequelize.STRING
     });
   },
 

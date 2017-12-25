@@ -21,8 +21,10 @@ Next we have to use Sequelize to perform a database migration. In your command l
 This should properly configure your local database. 
 
 After that into table ADMIN insert username and password for Admin user. Connect to database and execute
-'INSERT INTO admin (username,password) VALUES(\'admin\',\'1234\')'
+`INSERT INTO admin (username,password) VALUES(\'admin\',\'1234\')`
 
 Next we can start up the server by calling 
 	`npm start`, and the application should now be running at 
 [http://localhost:5000/](http://localhost:5000/)
+
+When the app is started we can run some test cases. Navigate to test folder (command: cd test) and run tests by calling `mocha`
